@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import type { PanInfo } from "framer-motion";
 
 interface PhotoComment {
   photo: string;
@@ -12,10 +14,18 @@ export default function PhotoConditionNotes() {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoComments, setPhotoComments] = useState<PhotoComment[]>([]);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const [swipeOffset, setSwipeOffset] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [exitDirection, setExitDirection] = useState<"left" | "right" | null>(
+    null
+  );
+
+  // Motion values for drag
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const opacity = useTransform(
+    x,
+    [-200, -100, 0, 100, 200],
+    [0.5, 1, 1, 1, 0.5]
+  );
 
   // Load photos from localStorage on mount
   useEffect(() => {
@@ -39,53 +49,44 @@ export default function PhotoConditionNotes() {
     );
   };
 
-  const animateToIndex = (newIndex: number) => {
-    setIsAnimating(true);
-    setCurrentIndex(newIndex);
-    setSwipeOffset(0);
-    setTimeout(() => setIsAnimating(false), 300);
-  };
+  const handleDragEnd = (
+    _: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
+    const threshold = 100;
+    const velocity = info.velocity.x;
+    const offset = info.offset.x;
 
-  // Touch handlers for swipe
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (isAnimating) return;
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (isAnimating || !touchStart) return;
-    const currentTouch = e.targetTouches[0].clientX;
-    setTouchEnd(currentTouch);
-
-    const diff = currentTouch - touchStart;
-    const maxOffset = 100;
-    const limitedOffset = Math.max(-maxOffset, Math.min(maxOffset, diff));
-    setSwipeOffset(limitedOffset);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd || isAnimating) {
-      setSwipeOffset(0);
-      return;
-    }
-
-    const distance = touchStart - touchEnd;
-    const minSwipeDistance = 50;
-
-    if (
-      distance > minSwipeDistance &&
-      currentIndex < photoComments.length - 1
-    ) {
-      animateToIndex(currentIndex + 1);
-    } else if (distance < -minSwipeDistance && currentIndex > 0) {
-      animateToIndex(currentIndex - 1);
+    if (offset < -threshold || velocity < -500) {
+      // Swiped left - go to next
+      if (currentIndex < photoComments.length - 1) {
+        setExitDirection("left");
+        animate(x, -400, { duration: 0.3 }).then(() => {
+          setCurrentIndex((prev) => prev + 1);
+          setExitDirection(null);
+          x.set(0);
+        });
+      } else {
+        // Bounce back
+        animate(x, 0, { type: "spring", stiffness: 300, damping: 30 });
+      }
+    } else if (offset > threshold || velocity > 500) {
+      // Swiped right - go to previous
+      if (currentIndex > 0) {
+        setExitDirection("right");
+        animate(x, 400, { duration: 0.3 }).then(() => {
+          setCurrentIndex((prev) => prev - 1);
+          setExitDirection(null);
+          x.set(0);
+        });
+      } else {
+        // Bounce back
+        animate(x, 0, { type: "spring", stiffness: 300, damping: 30 });
+      }
     } else {
-      setSwipeOffset(0);
+      // Return to center
+      animate(x, 0, { type: "spring", stiffness: 300, damping: 30 });
     }
-
-    setTouchStart(null);
-    setTouchEnd(null);
   };
 
   const handleSaveReport = () => {
@@ -106,7 +107,7 @@ export default function PhotoConditionNotes() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted">
       {/* Mobile container */}
-      <div className="relative min-h-screen w-full min-w-[375px] max-w-[430px] bg-white shadow-2xl">
+      <div className="relative min-h-screen w-full min-w-[375px] max-w-[430px] bg-white shadow-2xl overflow-hidden">
         {/* Main content wrapper */}
         <div className="flex min-h-screen flex-col px-5">
           {/* Header */}
@@ -133,18 +134,13 @@ export default function PhotoConditionNotes() {
           </p>
 
           {/* Photo Cards Stack */}
-          <div
-            className="relative mb-4 flex justify-center h-[420px]"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
+          <div className="relative mb-4 flex justify-center h-[420px]">
             {/* Stacked Cards Container */}
             <div className="relative w-[320px] h-[400px]">
-              {/* Back card 2 (Light Blue) - shows if there are 2+ more photos */}
+              {/* Back card 2 (Light Blue) */}
               {photoComments.length > currentIndex + 2 && (
-                <div
-                  className="absolute rounded-[24px] transition-all duration-300"
+                <motion.div
+                  className="absolute rounded-[24px]"
                   style={{
                     background: "#DAF2FF",
                     top: "16px",
@@ -153,13 +149,15 @@ export default function PhotoConditionNotes() {
                     bottom: "-16px",
                     zIndex: 1,
                   }}
+                  initial={{ scale: 0.9, opacity: 0.7 }}
+                  animate={{ scale: 0.9, opacity: 0.7 }}
                 />
               )}
 
-              {/* Back card 1 (Light Green) - shows if there is 1+ more photo */}
+              {/* Back card 1 (Light Green) */}
               {photoComments.length > currentIndex + 1 && (
-                <div
-                  className="absolute rounded-[24px] transition-all duration-300"
+                <motion.div
+                  className="absolute rounded-[24px]"
                   style={{
                     background: "#D1FAE5",
                     top: "8px",
@@ -168,16 +166,25 @@ export default function PhotoConditionNotes() {
                     bottom: "-8px",
                     zIndex: 2,
                   }}
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 0.95 }}
                 />
               )}
 
-              {/* Main Photo Card with Gradient Border */}
-              <div
-                className="absolute inset-0 transition-all duration-300 ease-out"
+              {/* Main Photo Card - Draggable */}
+              <motion.div
+                className="absolute inset-0 cursor-grab active:cursor-grabbing"
                 style={{
-                  transform: `translateX(${swipeOffset}px)`,
+                  x,
+                  rotate,
+                  opacity: exitDirection ? opacity : 1,
                   zIndex: 10,
                 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.7}
+                onDragEnd={handleDragEnd}
+                whileTap={{ cursor: "grabbing" }}
               >
                 <div
                   className="w-full h-full rounded-[24px] p-[4px]"
@@ -190,11 +197,12 @@ export default function PhotoConditionNotes() {
                     <img
                       src={photoComments[currentIndex]?.photo}
                       alt={`Photo ${currentIndex + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover pointer-events-none"
+                      draggable={false}
                     />
                   </div>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
 
