@@ -1,8 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useTransform,
+  animate,
+  AnimatePresence,
+} from "framer-motion";
 import type { PanInfo } from "framer-motion";
 
 interface PhotoComment {
@@ -14,18 +20,16 @@ export default function PhotoConditionNotes() {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [photoComments, setPhotoComments] = useState<PhotoComment[]>([]);
-  const [exitDirection, setExitDirection] = useState<"left" | "right" | null>(
-    null
-  );
+  const [isDragging, setIsDragging] = useState(false);
 
   // Motion values for drag
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-15, 15]);
-  const opacity = useTransform(
-    x,
-    [-200, -100, 0, 100, 200],
-    [0.5, 1, 1, 1, 0.5]
-  );
+
+  // Tinder-style rotation: rotate based on drag direction
+  const rotateZ = useTransform(x, [-300, 0, 300], [-25, 2.77, 30]);
+
+  // Scale down slightly as card moves away
+  const scale = useTransform(x, [-300, 0, 300], [0.95, 1, 0.95]);
 
   // Load photos from localStorage on mount
   useEffect(() => {
@@ -49,43 +53,65 @@ export default function PhotoConditionNotes() {
     );
   };
 
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
+  const swipeCard = useCallback(
+    (direction: "left" | "right") => {
+      const exitX = direction === "left" ? -500 : 500;
+      const exitRotate = direction === "left" ? -30 : 30;
+
+      animate(x, exitX, {
+        type: "spring",
+        stiffness: 200,
+        damping: 30,
+        velocity: direction === "left" ? -1000 : 1000,
+      }).then(() => {
+        if (direction === "left" && currentIndex < photoComments.length - 1) {
+          setCurrentIndex((prev) => prev + 1);
+        } else if (direction === "right" && currentIndex > 0) {
+          setCurrentIndex((prev) => prev - 1);
+        }
+        x.set(0);
+        setIsDragging(false);
+      });
+    },
+    [currentIndex, photoComments.length, x]
+  );
+
   const handleDragEnd = (
     _: MouseEvent | TouchEvent | PointerEvent,
     info: PanInfo
   ) => {
     const threshold = 100;
-    const velocity = info.velocity.x;
+    const velocityThreshold = 500;
     const offset = info.offset.x;
+    const velocity = info.velocity.x;
 
-    if (offset < -threshold || velocity < -500) {
-      // Swiped left - go to next
+    // Determine if swipe was strong enough
+    if (offset < -threshold || velocity < -velocityThreshold) {
+      // Swiped left - go to next photo
       if (currentIndex < photoComments.length - 1) {
-        setExitDirection("left");
-        animate(x, -400, { duration: 0.3 }).then(() => {
-          setCurrentIndex((prev) => prev + 1);
-          setExitDirection(null);
-          x.set(0);
-        });
+        swipeCard("left");
       } else {
-        // Bounce back
-        animate(x, 0, { type: "spring", stiffness: 300, damping: 30 });
+        // Bounce back - no more photos
+        animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
+        setIsDragging(false);
       }
-    } else if (offset > threshold || velocity > 500) {
-      // Swiped right - go to previous
+    } else if (offset > threshold || velocity > velocityThreshold) {
+      // Swiped right - go to previous photo
       if (currentIndex > 0) {
-        setExitDirection("right");
-        animate(x, 400, { duration: 0.3 }).then(() => {
-          setCurrentIndex((prev) => prev - 1);
-          setExitDirection(null);
-          x.set(0);
-        });
+        swipeCard("right");
       } else {
-        // Bounce back
-        animate(x, 0, { type: "spring", stiffness: 300, damping: 30 });
+        // Bounce back - at first photo
+        animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
+        setIsDragging(false);
       }
     } else {
-      // Return to center
-      animate(x, 0, { type: "spring", stiffness: 300, damping: 30 });
+      // Snap back to center with spring animation
+      animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
+      setIsDragging(false);
     }
   };
 
@@ -134,76 +160,85 @@ export default function PhotoConditionNotes() {
           </p>
 
           {/* Photo Cards Stack */}
-          <div className="relative mb-4 flex justify-center h-[440px]">
+          <div className="relative mb-4 flex justify-center items-center h-[460px]">
             {/* Stacked Cards Container */}
             <div className="relative w-[320px] h-[420px]">
-              {/* Back card 2 (Light Blue) - furthest back */}
+              {/* Back card - Photo 3 (furthest back, 4.55 degrees) */}
               {photoComments.length > currentIndex + 2 && (
                 <motion.div
-                  className="absolute rounded-[32px]"
+                  className="absolute w-full h-full rounded-[32px] overflow-hidden"
                   style={{
-                    background: "#DAF2FF",
-                    top: "20px",
-                    left: "6px",
-                    right: "6px",
-                    bottom: "-12px",
                     zIndex: 1,
+                    transformOrigin: "center center",
                   }}
-                  initial={{ opacity: 0.8 }}
-                  animate={{ opacity: 0.8 }}
-                />
+                  animate={{ rotate: 4.55, opacity: 0.85 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <img
+                    src={photoComments[currentIndex + 2]?.photo}
+                    alt={`Photo ${currentIndex + 3}`}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                </motion.div>
               )}
 
-              {/* Back card 1 (Mint Green) - middle */}
+              {/* Middle card - Photo 2 (-7.95 degrees) */}
               {photoComments.length > currentIndex + 1 && (
                 <motion.div
-                  className="absolute rounded-[32px]"
+                  className="absolute w-full h-full rounded-[32px] overflow-hidden"
                   style={{
-                    background: "#D1FAE5",
-                    top: "10px",
-                    left: "3px",
-                    right: "3px",
-                    bottom: "-6px",
                     zIndex: 2,
+                    transformOrigin: "center center",
                   }}
-                  initial={{ opacity: 0.9 }}
-                  animate={{ opacity: 0.9 }}
-                />
+                  animate={{
+                    rotate: -7.95,
+                    opacity: 0.92,
+                    scale: isDragging ? 1.02 : 1,
+                  }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <img
+                    src={photoComments[currentIndex + 1]?.photo}
+                    alt={`Photo ${currentIndex + 2}`}
+                    className="w-full h-full object-cover"
+                    draggable={false}
+                  />
+                </motion.div>
               )}
 
-              {/* Main Photo Card - Draggable */}
-              <motion.div
-                className="absolute inset-0 cursor-grab active:cursor-grabbing"
-                style={{
-                  x,
-                  rotate,
-                  opacity: exitDirection ? opacity : 1,
-                  zIndex: 10,
-                }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.7}
-                onDragEnd={handleDragEnd}
-                whileTap={{ cursor: "grabbing" }}
-              >
-                <div
-                  className="w-full h-full rounded-[32px] p-[4px]"
+              {/* Main Photo Card - Draggable with Tinder animation */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentIndex}
+                  className="absolute inset-0 cursor-grab active:cursor-grabbing rounded-[32px] overflow-hidden"
                   style={{
-                    background:
-                      "linear-gradient(135deg, #FEF9C3 0%, #D1FAE5 50%, #DAF2FF 100%)",
-                    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12)",
+                    x,
+                    rotate: rotateZ,
+                    scale,
+                    zIndex: 10,
+                    transformOrigin: "center bottom",
+                    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.15)",
                   }}
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={1}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  whileTap={{ cursor: "grabbing" }}
                 >
-                  <div className="w-full h-full rounded-[28px] overflow-hidden bg-slate-100">
-                    <img
-                      src={photoComments[currentIndex]?.photo}
-                      alt={`Photo ${currentIndex + 1}`}
-                      className="w-full h-full object-cover pointer-events-none"
-                      draggable={false}
-                    />
-                  </div>
-                </div>
-              </motion.div>
+                  <img
+                    src={photoComments[currentIndex]?.photo}
+                    alt={`Photo ${currentIndex + 1}`}
+                    className="w-full h-full object-cover pointer-events-none select-none"
+                    draggable={false}
+                  />
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
 
