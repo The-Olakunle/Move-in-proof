@@ -134,40 +134,40 @@ export default function PhotoConditionNotes() {
           </p>
 
           {/* Photo Cards Stack */}
-          <div className="relative mb-4 flex justify-center h-[420px]">
+          <div className="relative mb-4 flex justify-center h-[440px]">
             {/* Stacked Cards Container */}
-            <div className="relative w-[320px] h-[400px]">
-              {/* Back card 2 (Light Blue) */}
+            <div className="relative w-[320px] h-[420px]">
+              {/* Back card 2 (Light Blue) - furthest back */}
               {photoComments.length > currentIndex + 2 && (
                 <motion.div
-                  className="absolute rounded-[24px]"
+                  className="absolute rounded-[32px]"
                   style={{
                     background: "#DAF2FF",
-                    top: "16px",
-                    left: "-8px",
-                    right: "-8px",
-                    bottom: "-16px",
+                    top: "20px",
+                    left: "6px",
+                    right: "6px",
+                    bottom: "-12px",
                     zIndex: 1,
                   }}
-                  initial={{ scale: 0.9, opacity: 0.7 }}
-                  animate={{ scale: 0.9, opacity: 0.7 }}
+                  initial={{ opacity: 0.8 }}
+                  animate={{ opacity: 0.8 }}
                 />
               )}
 
-              {/* Back card 1 (Light Green) */}
+              {/* Back card 1 (Mint Green) - middle */}
               {photoComments.length > currentIndex + 1 && (
                 <motion.div
-                  className="absolute rounded-[24px]"
+                  className="absolute rounded-[32px]"
                   style={{
                     background: "#D1FAE5",
-                    top: "8px",
-                    left: "-4px",
-                    right: "-4px",
-                    bottom: "-8px",
+                    top: "10px",
+                    left: "3px",
+                    right: "3px",
+                    bottom: "-6px",
                     zIndex: 2,
                   }}
-                  initial={{ scale: 0.95 }}
-                  animate={{ scale: 0.95 }}
+                  initial={{ opacity: 0.9 }}
+                  animate={{ opacity: 0.9 }}
                 />
               )}
 
@@ -187,13 +187,14 @@ export default function PhotoConditionNotes() {
                 whileTap={{ cursor: "grabbing" }}
               >
                 <div
-                  className="w-full h-full rounded-[24px] p-[4px]"
+                  className="w-full h-full rounded-[32px] p-[4px]"
                   style={{
                     background:
                       "linear-gradient(135deg, #FEF9C3 0%, #D1FAE5 50%, #DAF2FF 100%)",
+                    boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12)",
                   }}
                 >
-                  <div className="w-full h-full rounded-[20px] overflow-hidden bg-slate-100">
+                  <div className="w-full h-full rounded-[28px] overflow-hidden bg-slate-100">
                     <img
                       src={photoComments[currentIndex]?.photo}
                       alt={`Photo ${currentIndex + 1}`}
