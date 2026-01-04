@@ -9,6 +9,7 @@ import {
   DrawerContent,
   DrawerFooter,
 } from "@/components/ui/drawer";
+import { initializeRoomQueue, getRoomPath } from "@/hooks/useRoomQueue";
 
 export default function StartReport() {
   const navigate = useNavigate();
@@ -23,9 +24,17 @@ export default function StartReport() {
     try {
       // Request camera access
       await navigator.mediaDevices.getUserMedia({ video: true });
-      // If permission granted, close drawer and navigate to reporting
+      // If permission granted, initialize the room queue
+      const queue = initializeRoomQueue();
       setIsDrawerOpen(false);
-      navigate("/report/living-room");
+
+      if (queue.length > 0) {
+        // Navigate to first room in queue
+        navigate(getRoomPath(queue[0]));
+      } else {
+        // No rooms selected, go back to room selection
+        navigate("/property/rooms");
+      }
     } catch (error) {
       // Handle permission denied or error
       console.error("Camera access denied:", error);

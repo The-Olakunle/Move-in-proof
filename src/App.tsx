@@ -11,8 +11,9 @@ import PropertySetup from "@/pages/propertysetup";
 import TenancyLength from "@/pages/tenancylength";
 import RoomSelection from "@/pages/RoomSelection";
 import StartReport from "@/pages/startReport";
-import LivingRoomPhotos from "@/pages/LivingRoomPhotos";
-import PhotoConditionNotes from "@/pages/PhotoConditionNotes";
+import RoomPhotos from "@/pages/RoomPhotos";
+import RoomConditionNotes from "@/pages/RoomConditionNotes";
+import ReportComplete from "@/pages/ReportComplete";
 import { Toaster } from "@/components/ui/sonner";
 
 function App() {
@@ -35,11 +36,16 @@ function App() {
 
         {/* Reporting */}
         <Route path="/report/start" element={<StartReport />} />
-        <Route path="/report/living-room" element={<LivingRoomPhotos />} />
+
+        {/* Dynamic room routes */}
+        <Route path="/report/:roomType/:roomIndex" element={<RoomPhotos />} />
         <Route
-          path="/report/living-room/notes"
-          element={<PhotoConditionNotes />}
+          path="/report/:roomType/:roomIndex/notes"
+          element={<RoomConditionNotes />}
         />
+
+        {/* Report complete */}
+        <Route path="/report/complete" element={<ReportComplete />} />
       </Routes>
     </Router>
   );
